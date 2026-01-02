@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocat - Low-Latency AI Voice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="h-full flex items-center justify-center font-sans text-gray-200">
+
+    <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-6">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-white">Vocat</h1>
+            <p class="text-lg text-indigo-300">Low-Latency Streaming AI</p>
+        </div>
+
+        <div class="flex items-center justify-center space-x-3 bg-gray-700 p-4 rounded-lg">
+            <span id="status-indicator" class="h-4 w-4 rounded-full bg-red-500 animate-pulse"></span>
+            <span id="status-label" class="font-medium text-gray-300">Not Connected</span>
+        </div>
+
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-gray-400">AI Voice Output:</label>
+            <audio id="audio-player" class="w-full rounded-md" controls></audio>
+        </div>
+
+        <div class="bg-gray-900 rounded-lg p-4 h-32 text-center text-gray-500 italic flex items-center justify-center">
+            <p id="transcription-display">Speak and the AI will respond...</p>
+        </div>
+
+        <div class="flex space-x-4">
+            <button id="start-button" onclick="start()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 ease-in-out">
+                Start Call
+            </button>
+            <button id="stop-button" onclick="stop()" disabled class="flex-1 bg-gray-600 text-gray-400 font-bold py-3 px-4 rounded-lg cursor-not-allowed transition-all duration-200 ease-in-out">
+                Stop Call
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let pc = null;
+        let localStream = null;
+
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const audioPlayer = document.getElementById('audio-player');
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusLabel = document.getElementById('status-label');
+        const transcriptionDisplay = document.getElementById('transcription-display');
+
+        let audioQueue = [];
+        let isPlaying = false;
+
+        function playNextInQueue() {
+            if (audioQueue.length > 0 && !isPlaying) {
+                isPlaying = true;
+                const stream = audioQueue.shift();
+                
+                console.log("Playing next audio from queue");
+                audioPlayer.srcObject = stream;
+                
+                audioPlayer.play().catch(e => {
+                    console.error("Audio play error:", e);
+                    isPlaying = false;
+                    playNextInQueue();
+                });
+
+                audioPlayer.onended = () => {
+                    console.log("Audio finished");
+                    isPlaying = false;
+                    playNextInQueue();
+                };
+            } else if (audioQueue.length === 0 && !isPlaying) {
+                updateStatus("Connected. Listening...", true, false);
+            }
+        }
+
+        function updateStatus(message, isConnected, isSpeaking = false) {
+            statusLabel.textContent = message;
+            statusIndicator.className = 'h-4 w-4 rounded-full';
+            
+            if (isConnected) {
+                statusIndicator.classList.add('bg-green-500');
+                if (isSpeaking) {
+                    statusIndicator.classList.add('animate-pulse');
+                }
+            } else {
+                statusIndicator.classList.add('bg-red-500', 'animate-pulse');
+            }
+        }
+
+        async function start() {
+            console.log("Starting call...");
+            startButton.disabled = true;
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: false
+                });
+                console.log("Microphone access granted");
+
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                pc.ontrack = (event) => {
+                    console.log("Remote track received:", event.track.kind);
+                    if (event.track.kind === 'audio' && event.streams[0]) {
+                        audioQueue.push(event.streams[0]);
+                        updateStatus("AI is speaking...", true, true);
+                        playNextInQueue();
+                    }
+                };
+                
+                pc.onconnectionstatechange = () => {
+                    console.log("Connection state:", pc.connectionState);
+                    if (pc.connectionState === 'connected') {
+                        updateStatus("Connected. Listening...", true, false);
+                    } else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+                        updateStatus("Connection lost", false);
+                        stop();
+                    }
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    console.log("ICE state:", pc.iceConnectionState);
+                };
+
+                localStream.getTracks().forEach(track => {
+                    pc.addTrack(track, localStream);
+                    console.log("Added local track");
+                });
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                console.log("Offer created");
+
+                const response = await fetch('http://localhost:8080/offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        type: offer.type,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const answer = await response.json();
+                console.log("Answer received");
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                console.log("WebRTC handshake complete");
+                
+                updateStatus("Connected. Listening...", true, false);
+                stopButton.disabled = false;
+                stopButton.classList.remove('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
+                stopButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
+
+            } catch (err) {
+                console.error("Start error:", err);
+                updateStatus("Error: " + err.message, false);
+                stop();
+            }
+        }
+
+        function stop() {
+            console.log("Stopping call...");
+            
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            audioPlayer.srcObject = null;
+            audioQueue = [];
+            isPlaying = false;
+            
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            stopButton.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
+            stopButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
+            updateStatus("Not Connected", false);
+        }
+    </script>
+</body>
+</html>
