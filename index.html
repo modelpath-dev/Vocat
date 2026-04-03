@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Text:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+            background: #202124;
+            color: #e8eaed;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ===== PRE-JOIN LOBBY ===== */
+        .lobby {
+            display: flex;
+            height: 100vh;
+            align-items: center;
+            justify-content: center;
+            gap: 48px;
+            padding: 24px;
+        }
+
+        .lobby-preview {
+            width: 480px;
+            height: 320px;
+            background: #3c4043;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lobby-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #ee675c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 500;
+            color: #202124;
+        }
+
+        .lobby-preview-controls {
+            position: absolute;
+            bottom: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .lobby-ctrl-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .lobby-ctrl-btn.on {
+            background: #3c4043;
+            color: #e8eaed;
+        }
+
+        .lobby-ctrl-btn.off {
+            background: #ea4335;
+            color: #fff;
+        }
+
+        .lobby-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            max-width: 320px;
+        }
+
+        .lobby-title {
+            font-size: 28px;
+            font-weight: 400;
+            color: #e8eaed;
+            margin-bottom: 4px;
+        }
+
+        .lobby-subtitle {
+            font-size: 14px;
+            color: #9aa0a6;
+            margin-bottom: 20px;
+        }
+
+        .lobby-join-btn {
+            background: #1a73e8;
+            color: #fff;
+            border: none;
+            border-radius: 24px;
+            padding: 10px 24px;
+            font-size: 15px;
+            font-family: 'Google Sans', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .lobby-join-btn:hover {
+            background: #1765cc;
+        }
+
+        .lobby-join-btn:disabled {
+            background: #3c4043;
+            color: #5f6368;
+            cursor: not-allowed;
+        }
+
+        .lobby-join-btn .material-icons-round {
+            font-size: 20px;
+        }
+
+        /* ===== IN-CALL VIEW ===== */
+        .call-view {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .call-view.active {
+            display: flex;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            height: 56px;
+            flex-shrink: 0;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .top-bar-left .clock {
+            font-size: 14px;
+            color: #e8eaed;
+            font-weight: 400;
+        }
+
+        .top-bar-left .separator {
+            color: #5f6368;
+            font-size: 14px;
+        }
+
+        .top-bar-left .meeting-code {
+            font-size: 14px;
+            color: #e8eaed;
+            font-weight: 400;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .top-icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #e8eaed;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .top-icon-btn:hover {
+            background: rgba(232, 234, 237, 0.08);
+        }
+
+        .top-icon-btn .material-icons-round {
+            font-size: 20px;
+        }
+
+        /* Main call area */
+        .call-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 8px;
+            position: relative;
+            min-height: 0;
+        }
+
+        /* AI participant (main tile) */
+        .main-tile {
+            background: #3c4043;
+            border-radius: 8px;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-avatar {
+            width: 128px;
+            height: 128px;
+            border-radius: 50%;
+            background: #669df6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 52px;
+            font-weight: 500;
+            color: #1a1a2e;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .main-avatar.speaking {
+            animation: speak-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes speak-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 157, 246, 0); }
+            50% { box-shadow: 0 0 0 6px rgba(102, 157, 246, 0.35); }
+        }
+
+        .main-tile-name {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #e8eaed;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.55);
+        }
+
+        .main-tile-mic {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .main-tile-mic .material-icons-round {
+            font-size: 16px;
+            color: #e8eaed;
+        }
+
+        /* Self view (PiP) */
+        .self-pip {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 176px;
+            height: 100px;
+            background: #3c4043;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        .self-pip-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #ee675c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 500;
+            color: #202124;
+        }
+
+        .self-pip-avatar.speaking {
+            animation: self-speak-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes self-speak-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(238, 103, 92, 0); }
+            50% { box-shadow: 0 0 0 4px rgba(238, 103, 92, 0.35); }
+        }
+
+        .self-pip-name {
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            font-size: 11px;
+            color: #e8eaed;
+            background: rgba(0,0,0,0.55);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+
+        /* Captions */
+        .captions-container {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 75%;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .caption-box {
+            display: none;
+            background: #202124e6;
+            color: #e8eaed;
+            font-size: 15px;
+            line-height: 1.5;
+            padding: 8px 14px;
+            border-radius: 8px;
+        }
+
+        /* ===== BOTTOM BAR ===== */
+        .bottom-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            height: 80px;
+            flex-shrink: 0;
+        }
+
+        .bottom-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .bottom-left .timer {
+            font-size: 13px;
+            color: #e8eaed;
+            font-weight: 400;
+            white-space: nowrap;
+        }
+
+        .connection-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #34a853;
+            display: none;
+        }
+
+        .connection-indicator.active {
+            display: block;
+        }
+
+        .bottom-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bottom-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+
+        /* Control buttons */
+        .ctrl-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            position: relative;
+        }
+
+        .ctrl-btn .material-icons-round {
+            font-size: 22px;
+        }
+
+        .ctrl-btn.dark {
+            background: #3c4043;
+            color: #e8eaed;
+        }
+
+        .ctrl-btn.dark:hover {
+            background: #505356;
+        }
+
+        .ctrl-btn.red {
+            background: #ea4335;
+            color: #fff;
+        }
+
+        .ctrl-btn.red:hover {
+            background: #d93025;
+        }
+
+        .ctrl-btn.end {
+            width: 56px;
+            height: 40px;
+            border-radius: 24px;
+            background: #ea4335;
+            color: #fff;
+        }
+
+        .ctrl-btn.end:hover {
+            background: #d93025;
+        }
+
+        .ctrl-btn:disabled {
+            opacity: 0.38;
+            cursor: default;
+        }
+
+        /* Side panel buttons */
+        .side-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #e8eaed;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .side-btn:hover {
+            background: rgba(232, 234, 237, 0.08);
+        }
+
+        .side-btn .material-icons-round {
+            font-size: 22px;
+        }
+
+        /* Tooltip */
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e8eaed;
+            color: #202124;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 5px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Hidden audio */
+        #audio-player { display: none; }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .lobby {
+                flex-direction: column;
+                gap: 24px;
+            }
+            .lobby-preview {
+                width: 100%;
+                max-width: 400px;
+                height: 260px;
+            }
+            .lobby-info {
+                align-items: center;
+                text-align: center;
+            }
+            .self-pip {
+                width: 120px;
+                height: 68px;
+            }
+            .self-pip-avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== PRE-JOIN LOBBY ===== -->
+<div class="lobby" id="lobby">
+    <div class="lobby-preview">
+        <div class="lobby-avatar">Y</div>
+        <div class="lobby-preview-controls">
+            <button class="lobby-ctrl-btn on" id="lobby-mic-btn" data-tooltip="Microphone">
+                <span class="material-icons-round">mic</span>
+            </button>
+        </div>
+    </div>
+    <div class="lobby-info">
+        <div class="lobby-title">Ready to join?</div>
+        <div class="lobby-subtitle">vocat-ai-session</div>
+        <button class="lobby-join-btn" id="join-btn" onclick="joinCall()">
+            Join now
+        </button>
+    </div>
+</div>
+
+<!-- ===== IN-CALL VIEW ===== -->
+<div class="call-view" id="call-view">
+
+    <!-- Top bar -->
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span class="clock" id="clock"></span>
+            <span class="separator">|</span>
+            <span class="meeting-code">vocat-ai-session</span>
+        </div>
+        <div class="top-bar-right">
+            <button class="top-icon-btn" data-tooltip="Meeting details">
+                <span class="material-icons-round">info_outline</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main call area -->
+    <div class="call-main">
+        <!-- AI main tile -->
+        <div class="main-tile">
+            <div class="main-avatar" id="ai-avatar">AI</div>
+            <span class="main-tile-name">Vocat AI</span>
+            <div class="main-tile-mic" id="ai-mic-icon">
+                <span class="material-icons-round">mic</span>
+            </div>
+        </div>
+
+        <!-- Self PiP -->
+        <div class="self-pip">
+            <div class="self-pip-avatar" id="self-avatar">Y</div>
+            <span class="self-pip-name">You</span>
+        </div>
+
+        <!-- Captions -->
+        <div class="captions-container">
+            <div class="caption-box" id="caption-box"></div>
+        </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+        <div class="bottom-left">
+            <span class="timer" id="call-timer"></span>
+            <span class="connection-indicator" id="conn-dot"></span>
+        </div>
+        <div class="bottom-center">
+            <button class="ctrl-btn dark" id="mic-btn" data-tooltip="Turn off microphone" onclick="toggleMic()">
+                <span class="material-icons-round">mic</span>
+            </button>
+            <button class="ctrl-btn dark" id="cc-btn" data-tooltip="Turn on captions" onclick="toggleCaptions()">
+                <span class="material-icons-round">closed_caption_off</span>
+            </button>
+            <button class="ctrl-btn dark" id="react-btn" data-tooltip="Reactions" disabled>
+                <span class="material-icons-round">sentiment_satisfied_alt</span>
+            </button>
+            <button class="ctrl-btn end" id="end-btn" data-tooltip="Leave call" onclick="leaveCall()">
+                <span class="material-icons-round">call_end</span>
+            </button>
+        </div>
+        <div class="bottom-right">
+            <button class="side-btn" data-tooltip="People" disabled>
+                <span class="material-icons-round">people_outline</span>
+            </button>
+            <button class="side-btn" data-tooltip="Chat" disabled>
+                <span class="material-icons-round">chat_bubble_outline</span>
+            </button>
+            <button class="side-btn" data-tooltip="Activities" disabled>
+                <span class="material-icons-round">apps</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden audio -->
+<audio id="audio-player"></audio>
+
+<script>
+    // State
+    let pc = null;
+    let localStream = null;
+    let callStartTime = null;
+    let timerInterval = null;
+    let clockInterval = null;
+    let captionsEnabled = false;
+    let micMuted = false;
+
+    // Elements
+    const lobby = document.getElementById('lobby');
+    const callView = document.getElementById('call-view');
+    const joinBtn = document.getElementById('join-btn');
+    const audioPlayer = document.getElementById('audio-player');
+    const aiAvatar = document.getElementById('ai-avatar');
+    const selfAvatar = document.getElementById('self-avatar');
+    const micBtn = document.getElementById('mic-btn');
+    const ccBtn = document.getElementById('cc-btn');
+    const captionBox = document.getElementById('caption-box');
+    const callTimer = document.getElementById('call-timer');
+    const clockEl = document.getElementById('clock');
+    const connDot = document.getElementById('conn-dot');
+
+    let audioQueue = [];
+    let isPlaying = false;
+
+    // Clock
+    function updateClock() {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Timer
+    function updateCallTimer() {
+        if (!callStartTime) return;
+        const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+        const s = (elapsed % 60).toString().padStart(2, '0');
+        callTimer.textContent = h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+    }
+
+    // Mic toggle
+    function toggleMic() {
+        if (!localStream) return;
+        micMuted = !micMuted;
+        localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+        micBtn.className = micMuted ? 'ctrl-btn red' : 'ctrl-btn dark';
+        micBtn.querySelector('.material-icons-round').textContent = micMuted ? 'mic_off' : 'mic';
+        micBtn.setAttribute('data-tooltip', micMuted ? 'Turn on microphone' : 'Turn off microphone');
+        selfAvatar.classList.toggle('speaking', !micMuted);
+    }
+
+    // Captions toggle
+    function toggleCaptions() {
+        captionsEnabled = !captionsEnabled;
+        ccBtn.querySelector('.material-icons-round').textContent = captionsEnabled ? 'closed_caption' : 'closed_caption_off';
+        ccBtn.setAttribute('data-tooltip', captionsEnabled ? 'Turn off captions' : 'Turn on captions');
+        if (!captionsEnabled) captionBox.style.display = 'none';
+    }
+
+    function showCaption(text) {
+        if (!captionsEnabled || !text) return;
+        captionBox.textContent = text;
+        captionBox.style.display = 'inline-block';
+    }
+
+    // Audio queue
+    function playNextInQueue() {
+        if (audioQueue.length > 0 && !isPlaying) {
+            isPlaying = true;
+            const stream = audioQueue.shift();
+            aiAvatar.classList.add('speaking');
+            audioPlayer.srcObject = stream;
+
+            audioPlayer.play().catch(e => {
+                console.error("Audio play error:", e);
+                isPlaying = false;
+                aiAvatar.classList.remove('speaking');
+                playNextInQueue();
+            });
+
+            audioPlayer.onended = () => {
+                isPlaying = false;
+                aiAvatar.classList.remove('speaking');
+                playNextInQueue();
+            };
+        }
+    }
+
+    // Join call
+    async function joinCall() {
+        joinBtn.disabled = true;
+        joinBtn.textContent = 'Joining...';
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                video: false
+            });
+
+            pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            pc.ontrack = (event) => {
+                if (event.track.kind === 'audio' && event.streams[0]) {
+                    audioQueue.push(event.streams[0]);
+                    playNextInQueue();
+                }
+            };
+
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'connected') {
+                    connDot.classList.add('active');
+                } else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+                    leaveCall();
+                }
+            };
+
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            const response = await fetch('http://localhost:8080/offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sdp: offer.sdp, type: offer.type }),
+            });
+
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+
+            const answer = await response.json();
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+            // Switch to call view
+            lobby.style.display = 'none';
+            callView.classList.add('active');
+            selfAvatar.classList.add('speaking');
+            connDot.classList.add('active');
+
+            // Start timers
+            callStartTime = Date.now();
+            timerInterval = setInterval(updateCallTimer, 1000);
+            clockInterval = setInterval(updateClock, 1000);
+            updateClock();
+            updateCallTimer();
+
+        } catch (err) {
+            console.error("Join error:", err);
+            joinBtn.disabled = false;
+            joinBtn.textContent = 'Join now';
+            alert('Failed to join: ' + err.message);
+        }
+    }
+
+    // Leave call
+    function leaveCall() {
+        if (pc) { pc.close(); pc = null; }
+        if (localStream) {
+            localStream.getTracks().forEach(t => t.stop());
+            localStream = null;
+        }
+
+        audioPlayer.srcObject = null;
+        audioQueue = [];
+        isPlaying = false;
+        micMuted = false;
+
+        clearInterval(timerInterval);
+        clearInterval(clockInterval);
+        callStartTime = null;
+
+        // Back to lobby
+        callView.classList.remove('active');
+        lobby.style.display = '';
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Join now';
+        aiAvatar.classList.remove('speaking');
+        selfAvatar.classList.remove('speaking');
+        connDot.classList.remove('active');
+        captionBox.style.display = 'none';
+    }
+</script>
+</body>
+</html>

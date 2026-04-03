@@ -1,294 +1,126 @@
+# Vocat — AI Interview Agent
 
-# Vocat - Low-Latency Voice AI
+A real-time AI interview agent with a Google Meet-style interface. Upload your resume, join the call, and the AI conducts a live voice interview — no typing, no lag, just a natural conversation.
 
-A real-time voice conversation system with sub-second latency using WebRTC, VAD, Whisper, GPT-4, and ElevenLabs TTS with Redis caching.
+![Lobby — Upload Resume](images/img.png)
+
+## How It Works
+
+1. **Upload your resume** — drag & drop or click to upload (PDF/TXT)
+2. **Join the call** — the AI interviewer greets you and starts asking questions based on your resume
+3. **Talk naturally** — voice activity detection handles turn-taking automatically
+4. **Get interviewed** — behavioral questions, technical deep-dives, follow-ups — just like a real interview
+
+![Resume Uploaded](images/img2.png)
+
+![In-Call View](images/img3.png)
 
 ## Architecture
 
 ```
-User Speech → WebRTC → VAD → Whisper → GPT-4 (Streaming) → Redis Cache → ElevenLabs → WebRTC → User Hears Response
+Mic → WebRTC → VAD → Whisper STT → GPT-4o → ElevenLabs TTS → WebRTC → Speaker
 ```
 
-## Features
+- **WebRTC** for full-duplex, low-latency audio streaming
+- **Voice Activity Detection** for automatic turn-taking (no push-to-talk)
+- **Whisper** for speech-to-text
+- **GPT-4o** with streaming for fast, context-aware responses
+- **ElevenLabs Turbo** for natural text-to-speech
+- **Sentence-level TTS** — starts speaking before the full response is generated
 
-- Full-duplex audio streaming via WebRTC
-- Voice Activity Detection for automatic turn-taking
-- Streaming GPT-4 responses with sentence-by-sentence TTS
-- Redis caching for 60% latency reduction
-- Sub-second response times
+## Tech Stack
 
-## Prerequisites
+| Layer | Tech |
+|-------|------|
+| Frontend | React + Vite + Tailwind CSS |
+| Transport | WebRTC (aiortc) |
+| VAD | webrtcvad |
+| STT | OpenAI Whisper |
+| LLM | GPT-4o (streaming) |
+| TTS | ElevenLabs (turbo v2.5) |
+| Backend | Python + aiohttp |
+
+## Setup
+
+### Prerequisites
 
 - Python 3.10+
-- Redis Server
+- Node.js 18+
 - FFmpeg
-- OpenAI API Key
-- ElevenLabs API Key
+- OpenAI API key
+- ElevenLabs API key
 
-## Installation
-
-### 1. Install System Dependencies
-
-**Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install -y redis-server ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
-```
-
-**macOS:**
-```bash
-brew install redis ffmpeg
-brew services start redis
-```
-
-**Windows:**
-Download and install Redis and FFmpeg manually.
-
-### 2. Install Python Dependencies
+### Install
 
 ```bash
-pip install aiohttp aiortc pydub webrtcvad openai elevenlabs redis
+# Clone
+git clone https://github.com/modelpath-dev/Vocat.git
+cd Vocat
+
+# Python dependencies
+pip install -r requirements.txt
+
+# Frontend dependencies
+cd frontend && npm install && cd ..
+
+# Environment variables
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
-### 3. Set Environment Variables
+### Run
 
 ```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export ELEVEN_LABS_API_KEY="your-elevenlabs-api-key"
+# Terminal 1 — Backend
+export $(cat .env | xargs) && python vocatl2_backend.py
+
+# Terminal 2 — Frontend
+cd frontend && npm run dev
 ```
 
-Or create a `.env` file:
-```
-OPENAI_API_KEY=your-openai-api-key
-ELEVEN_LABS_API_KEY=your-elevenlabs-api-key
-```
-
-### 4. Start Redis
-
-```bash
-redis-server
-```
-
-Verify Redis is running:
-```bash
-redis-cli ping
-```
-
-## Usage
-
-### 1. Start the Server
-
-```bash
-python server.py
-```
-
-You should see:
-```
-INFO:__main__:Connected to Redis successfully.
-INFO:__main__:Starting Vocat server on http://localhost:8080
-```
-
-### 2. Open the Frontend
-
-Navigate to `http://localhost:8080` in your browser.
-
-### 3. Start Conversation
-
-1. Click "Start Call"
-2. Allow microphone access
-3. Wait for "Connected. Listening..." status
-4. Speak naturally
-5. AI responds after detecting silence
+Open `http://localhost:5173` in your browser.
 
 ## Configuration
 
-### VAD Settings (in `server.py`)
+### VAD
 
 ```python
-VAD_AGGRESSIVENESS = 3
-VAD_SILENCE_TIMEOUT_MS = 600
+VAD_AGGRESSIVENESS = 3        # 0-3, higher = less sensitive to background noise
+VAD_SILENCE_TIMEOUT_MS = 600  # ms of silence before processing speech
 ```
 
-- `VAD_AGGRESSIVENESS`: 0-3, higher = less sensitive
-- `VAD_SILENCE_TIMEOUT_MS`: Silence duration before processing
+### Voice
 
-### Model Configuration
+Change the voice in `vocatl2_backend.py`:
 
 ```python
-model="gpt-4"
-voice="Rachel"
-model="eleven_multilingual_v2"
+voice_id="EXAVITQu4vr4xnSDxMaL"  # Sarah — see ElevenLabs voice library
 ```
 
-Change these in `server.py` to use different models/voices.
+### Interview Prompt
 
-### Redis Cache Expiry
-
-```python
-await redis_client.set(f"vocat:transcript:{text}", full_response, ex=3600)
-```
-
-Default: 1 hour (3600 seconds)
+Edit `prompts/interviewer.md` to customize the interviewer's behavior, question style, or focus areas.
 
 ## Project Structure
 
 ```
 vocat/
-├── server.py          # WebRTC server with AI pipeline
-├── index.html         # Frontend interface
-└── README.md          # This file
+├── vocatl2_backend.py       # WebRTC server + AI pipeline
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx          # Google Meet-style UI
+│   │   ├── hooks/
+│   │   │   └── useWebRTC.js # WebRTC client hook
+│   │   └── index.css
+│   ├── vite.config.js
+│   └── package.json
+├── prompts/
+│   └── interviewer.md       # Interview system prompt
+├── .env.example
+├── requirements.txt
+└── README.md
 ```
-
-## How It Works
-
-### Server Pipeline
-
-1. **WebRTC Connection**: Establishes peer connection with browser
-2. **Audio Reception**: Receives audio frames from microphone
-3. **VAD Processing**: Detects speech vs silence
-4. **Transcription**: Sends audio to Whisper API when silence detected
-5. **Cache Check**: Looks for cached response in Redis
-6. **LLM Streaming**: Streams response from GPT-4 if cache miss
-7. **Sentence Splitting**: Splits streaming text into sentences
-8. **TTS Generation**: Generates audio for each sentence via ElevenLabs
-9. **Audio Streaming**: Sends audio back via WebRTC
-
-### Frontend Pipeline
-
-1. **Microphone Capture**: getUserMedia captures audio
-2. **WebRTC Setup**: Creates peer connection with server
-3. **Audio Queue**: Manages incoming AI audio streams
-4. **Sequential Playback**: Plays audio sentences in order
-5. **Status Updates**: Visual feedback for connection state
-
-## Performance Optimization
-
-### Redis Caching Strategy
-
-- **Text-based caching**: Exact match on user input
-- **60% latency reduction** on cache hits
-- **Automatic expiry**: Prevents stale responses
-
-### Streaming Optimizations
-
-- **Sentence-level TTS**: Generates audio before full response complete
-- **Async task creation**: Non-blocking audio generation
-- **Queue-based playback**: Smooth audio transitions
-
-## Troubleshooting
-
-### Redis Connection Failed
-
-```bash
-sudo systemctl start redis
-redis-cli ping
-```
-
-### FFmpeg Not Found
-
-```bash
-which ffmpeg
-ffmpeg -version
-```
-
-### WebRTC Connection Failed
-
-- Check browser console for errors
-- Ensure HTTPS in production (WebRTC requirement)
-- Verify firewall allows port 8080
-
-### No Audio Output
-
-- Check browser audio permissions
-- Verify ElevenLabs API key
-- Check server logs for TTS errors
-
-### High Latency
-
-- Reduce `VAD_SILENCE_TIMEOUT_MS`
-- Use faster GPT model (gpt-3.5-turbo)
-- Ensure Redis is running locally
-
-## API Rate Limits
-
-- **OpenAI Whisper**: ~50 requests/minute
-- **OpenAI GPT-4**: Depends on tier
-- **ElevenLabs**: Depends on plan
-
-Monitor usage in respective dashboards.
-
-## Security Considerations
-
-- Store API keys in environment variables
-- Use HTTPS in production
-- Implement rate limiting
-- Add authentication for production deployment
-- Validate all user inputs
-
-## Production Deployment
-
-### Additional Requirements
-
-- HTTPS certificate (Let's Encrypt)
-- TURN server for NAT traversal
-- Load balancer for scaling
-- Logging aggregation
-- Error monitoring
-
-### Environment Variables
-
-```bash
-export REDIS_URL="redis://your-redis-host:6379"
-export PORT=8080
-export ENV=production
-```
-
-## Known Limitations
-
-- Single conversation per connection
-- No conversation persistence across sessions
-- Limited error recovery
-- No barge-in support
-- Cache invalidation is time-based only
-
-## Future Enhancements
-
-- Barge-in detection to interrupt AI
-- Multi-language support
-- Conversation history persistence
-- Semantic caching with embeddings
-- Real-time transcription display
-- Custom voice training
-- Emotion detection
-
-## Performance Metrics
-
-- **VAD Detection**: ~30ms
-- **Whisper Transcription**: 200-500ms
-- **GPT-4 First Token**: 300-800ms
-- **ElevenLabs TTS**: 400-600ms per sentence
-- **Total Latency (cache miss)**: 1-2 seconds
-- **Total Latency (cache hit)**: 400-800ms
 
 ## License
 
 MIT
-
-## Contributing
-
-Pull requests welcome. For major changes, open an issue first.
-
-## Support
-
-For issues, check server logs:
-```bash
-python server.py 2>&1 | tee vocat.log
-```
-
-## Acknowledgments
-
-- OpenAI for Whisper and GPT-4
-- ElevenLabs for TTS
-- aiortc for WebRTC implementation
-- webrtcvad for Voice Activity Detection
-```

@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+  background: #202124;
+  margin: 0;
+  overflow: hidden;
+}
+
+@keyframes speak-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(102, 157, 246, 0); }
+  50% { box-shadow: 0 0 0 6px rgba(102, 157, 246, 0.35); }
+}
+
+@keyframes self-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(238, 103, 92, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(238, 103, 92, 0.35); }
+}
+
+@keyframes bar-bounce {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}

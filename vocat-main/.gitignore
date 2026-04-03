@@ -1,7 +1,0 @@
-logs/
-outputs/
-recordings/
-transcripts/
-.env
-__pycache__/
-.mypy_cache/
