@@ -79,15 +79,17 @@ def record():
 
 def clean_up():
     logging.info('Exiting...')
-    # Delete all the recordings and transcripts
-    for file in os.listdir('./recordings'):
-        os.remove(f"./recordings/{file}")
-    for file in os.listdir('./transcripts'):
-        os.remove(f"./transcripts/{file}")
-    for file in os.listdir('./outputs'):
-        os.remove(f"./outputs/{file}")
+    dirs_to_clean = ['./recordings', './transcripts', './outputs']
+    for dir_path in dirs_to_clean:
+        try:
+            for file in os.listdir(dir_path):
+                file_path = os.path.join(dir_path, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+        except OSError as e:
+            logging.warning(f"Failed to clean {dir_path}: {e}")
     # Save the conversation
-    timestamp = datetime.datetime.now().timestamp()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     with open(f'logs/conversation_{timestamp}.txt', 'w') as f:
         for message in conversation_messages:
             f.write(f"{message.role}: {message.content}\n")
