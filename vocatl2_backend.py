@@ -40,6 +40,8 @@ VAD_FRAME_MS = 30
 VAD_FRAME_SAMPLES = int(SAMPLE_RATE * (VAD_FRAME_MS / 1000.0))
 VAD_SILENCE_TIMEOUT_MS = 600
 VAD_NUM_SILENT_FRAMES_TO_TRIGGER = VAD_SILENCE_TIMEOUT_MS // VAD_FRAME_MS
+MIN_AUDIO_DURATION_MS = 500  # Minimum audio duration to bother transcribing
+MAX_AUDIO_DURATION_MS = 30000  # Maximum single utterance length
 
 SENTENCE_ENDINGS = re.compile(r'([.!?;])\s')
 
@@ -240,7 +242,20 @@ class InterviewSession:
             self.is_processing = False
 
     async def transcribe_and_respond(self):
-        logger.info(f"Transcribing {len(self.audio_buffer)}ms of audio.")
+        audio_duration = len(self.audio_buffer)
+        logger.info(f"Transcribing {audio_duration}ms of audio.")
+
+        if audio_duration < MIN_AUDIO_DURATION_MS:
+            logger.info(f"Audio too short ({audio_duration}ms), skipping transcription.")
+            self.audio_buffer = AudioSegment.empty()
+            self.is_speaking = False
+            self.silent_frames_count = 0
+            return
+
+        if audio_duration > MAX_AUDIO_DURATION_MS:
+            logger.warning(f"Audio too long ({audio_duration}ms), truncating to {MAX_AUDIO_DURATION_MS}ms.")
+            self.audio_buffer = self.audio_buffer[:MAX_AUDIO_DURATION_MS]
+
         temp_path = f"/tmp/vocat_stt_{uuid.uuid4()}.wav"
 
         try:
