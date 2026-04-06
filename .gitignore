@@ -20,6 +20,12 @@ recordings/
 transcripts/
 temp_*.mp3
 temp_*.wav
+*.mp3
+*.wav
+
+# Build artifacts
+dist/
+build/
 
 # Node
 frontend/node_modules/
