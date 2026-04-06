@@ -452,6 +452,14 @@ async def _consume_track(track):
         pass
 
 
+async def health(request):
+    return web.json_response({
+        "status": "ok",
+        "active_connections": len(pcs),
+        "pending_sessions": len(session_resumes),
+    })
+
+
 async def index(request):
     try:
         with open("index.html", "r") as f:
@@ -469,6 +477,7 @@ async def on_shutdown(app):
 
 app = web.Application(client_max_size=10 * 1024 * 1024)
 app.router.add_get("/", index)
+app.router.add_get("/health", health)
 app.router.add_post("/offer", offer)
 app.router.add_post("/upload-resume", upload_resume)
 app.on_shutdown.append(on_shutdown)
