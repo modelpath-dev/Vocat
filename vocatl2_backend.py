@@ -479,7 +479,23 @@ async def on_shutdown(app):
     pcs.clear()
 
 
-app = web.Application(client_max_size=10 * 1024 * 1024)
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "http://localhost:5173",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+}
+
+
+@web.middleware
+async def cors_middleware(request, handler):
+    if request.method == "OPTIONS":
+        return web.Response(headers=CORS_HEADERS)
+    response = await handler(request)
+    response.headers.update(CORS_HEADERS)
+    return response
+
+
+app = web.Application(client_max_size=10 * 1024 * 1024, middlewares=[cors_middleware])
 app.router.add_get("/", index)
 app.router.add_get("/health", health)
 app.router.add_post("/offer", offer)
