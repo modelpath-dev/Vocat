@@ -160,6 +160,9 @@ class AudioOutputTrack(MediaStreamTrack):
         return frame
 
 
+MAX_CONVERSATION_TURNS = 50  # Limit conversation history to prevent token overflow
+
+
 class InterviewSession:
     """Manages VAD, transcription, LLM, and TTS for one call."""
 
@@ -171,7 +174,8 @@ class InterviewSession:
         self.is_processing = False
 
         system_prompt = INTERVIEWER_PROMPT_TEMPLATE.replace("{resume_text}", resume_text)
-        self.chat_history = [{"role": "system", "content": system_prompt}]
+        self.system_message = {"role": "system", "content": system_prompt}
+        self.chat_history = [self.system_message]
         logger.info("InterviewSession created.")
 
     async def send_greeting(self):
@@ -191,6 +195,13 @@ class InterviewSession:
         except Exception as e:
             logger.error(f"TTS error: {e}")
 
+    def _trim_history(self):
+        """Keep conversation history within token limits by trimming old turns."""
+        # Always keep the system message + last N turns
+        if len(self.chat_history) > MAX_CONVERSATION_TURNS * 2 + 1:
+            self.chat_history = [self.system_message] + self.chat_history[-(MAX_CONVERSATION_TURNS * 2):]
+            logger.info(f"Trimmed conversation history to {len(self.chat_history)} messages.")
+
     async def handle_transcript(self, text):
         if self.is_processing:
             logger.info("Already processing, skipping.")
@@ -199,6 +210,7 @@ class InterviewSession:
 
         try:
             self.chat_history.append({"role": "user", "content": text})
+            self._trim_history()
 
             logger.info("Streaming from GPT-4o...")
             loop = asyncio.get_event_loop()
