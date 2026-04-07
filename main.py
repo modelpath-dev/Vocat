@@ -79,7 +79,7 @@ def record():
 
 def clean_up():
     logging.info('Exiting...')
-    dirs_to_clean = ['./recordings', './transcripts', './outputs']
+    dirs_to_clean = [f"./{d}" for d in DATA_DIRS if d != "logs"]
     for dir_path in dirs_to_clean:
         try:
             for file in os.listdir(dir_path):
