@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY environment variable not set.")
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+OPENAI_TIMEOUT = float(os.environ.get("OPENAI_TIMEOUT", "30"))
+openai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=OPENAI_TIMEOUT)
 
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY") or os.environ.get("ELEVEN_LABS_API_KEY")
 if not ELEVENLABS_API_KEY:
