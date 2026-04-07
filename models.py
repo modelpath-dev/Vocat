@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 import time
 
@@ -14,6 +15,9 @@ class Message:
         if self.content is not None:
             result += " " + self.content
         return result
+
+    def formatted_time(self) -> str:
+        return datetime.fromtimestamp(self.timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
     def __str__(self):
         return self.render()
