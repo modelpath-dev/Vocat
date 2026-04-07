@@ -14,11 +14,11 @@ from pydub.playback import play
 
 logging.basicConfig(level=logging.INFO)
 
+DATA_DIRS = ["recordings", "transcripts", "outputs", "logs"]
+
 # Ensure these directories exist
-os.makedirs("recordings", exist_ok=True)
-os.makedirs("transcripts", exist_ok=True)
-os.makedirs("outputs", exist_ok=True)
-os.makedirs("logs", exist_ok=True)
+for _d in DATA_DIRS:
+    os.makedirs(_d, exist_ok=True)
 
 oai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 elevenlabs_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
